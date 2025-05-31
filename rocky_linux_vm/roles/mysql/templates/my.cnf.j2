@@ -1,0 +1,62 @@
+[mysqld]
+# Server configuration
+server-id = {{ mysql_server_id }}
+datadir = /var/lib/mysql
+socket = /var/lib/mysql/mysql.sock
+log-error = /var/log/mysqld.log
+pid-file = /var/run/mysqld/mysqld.pid
+
+# Binary logging for replication
+log-bin = mysql-bin
+binlog_format = ROW
+sync_binlog = 1
+
+# GTID replication
+gtid_mode = {{ mysql_gtid_mode }}
+enforce_gtid_consistency = {{ mysql_enforce_gtid_consistency }}
+
+# Replication settings
+read_only = {{ mysql_read_only }}
+relay-log = relay-bin
+relay-log-purge = 1
+log-slave-updates = 1
+
+# InnoDB settings
+innodb_buffer_pool_size = 128M
+innodb_log_file_size = 48M
+innodb_flush_log_at_trx_commit = 1
+innodb_flush_method = O_DIRECT
+
+# Basic Settings
+user = mysql
+basedir = /usr
+tmpdir = /tmp
+bind-address = 0.0.0.0
+
+# Connection Settings
+max_connections = 200
+thread_cache_size = 8
+wait_timeout = 600
+interactive_timeout = 600
+
+# Performance Settings
+key_buffer_size = 32M
+sort_buffer_size = 32K
+read_buffer_size = 8200
+read_rnd_buffer_size = 8200
+join_buffer_size = 128K
+thread_stack = 256K
+
+# Query Cache is removed in MySQL 8.0
+performance_schema = OFF
+
+# Binary Log Settings
+binlog_cache_size = 4K
+binlog_stmt_cache_size = 4K
+max_binlog_size = 100M
+expire_logs_days = 7
+
+!includedir /etc/mysql/conf.d/
+
+[client]
+socket = /var/lib/mysql/mysql.sock 

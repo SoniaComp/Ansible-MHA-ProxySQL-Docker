@@ -1,0 +1,12 @@
+---
+- name: Setup MySQL Cluster
+  hosts: mysql_cluster
+  become: yes  # sudo 권한 사용
+  roles:
+    - mysql
+
+# - name: Setup ProxySQL
+#   hosts: proxysql
+#   become: yes
+#   roles:
+#     - proxysql

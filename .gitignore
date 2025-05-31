@@ -1,2 +1,5 @@
 mysql_hosts/*
 damp/hostfile
+rocky_linux_vm/hostfile
+rocky_linux_vm/inventory.yml
+venv/

@@ -1,0 +1,171 @@
+---
+- name: Add MySQL 8.0 Repository
+  yum_repository:
+    name: mysql80-community
+    description: MySQL 8.0 Community Server
+    baseurl: http://repo.mysql.com/yum/mysql-8.0-community/el/8/$basearch/
+    gpgcheck: 1
+    gpgkey: https://repo.mysql.com/RPM-GPG-KEY-mysql
+    enabled: 1
+
+- name: Install MySQL 8.0 packages
+  dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - mysql-server
+    - python3-PyMySQL
+
+- name: Create MySQL configuration directory
+  file:
+    path: /etc/mysql/conf.d
+    state: directory
+    mode: '0755'
+
+- name: Configure MySQL Server
+  template:
+    src: my.cnf.j2
+    dest: /etc/my.cnf
+    mode: '0644'
+
+- name: Create MySQL data directory
+  file:
+    path: /var/lib/mysql
+    state: directory
+    owner: mysql
+    group: mysql
+    mode: '0751'
+
+- name: Create MySQL log directory
+  file:
+    path: /var/log
+    state: directory
+    mode: '0755'
+
+- name: Create MySQL log file
+  file:
+    path: /var/log/mysqld.log
+    state: touch
+    owner: mysql
+    group: mysql
+    mode: '0640'
+    force: no
+
+- name: Ensure correct permissions on MySQL directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: mysql
+    group: mysql
+    mode: '0755'
+    recurse: yes
+  with_items:
+    - /var/lib/mysql
+    - /var/run/mysqld
+
+- name: Start and enable MySQL Service
+  service:
+    name: mysqld
+    state: started
+    enabled: yes
+
+- name: Wait for MySQL to be ready
+  wait_for:
+    port: 3306
+    delay: 10
+    timeout: 60
+
+# 처음에 root 비밀번호 셋팅
+# - name: Change MySQL root password
+#   shell: |
+#     mysql -u root --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}';"
+#   when: mysql_role == 'master'
+
+# - name: Temporarily disable read_only on slave
+#   mysql_variables:
+#     variable: read_only
+#     value: "OFF"
+#     login_user: root
+#     login_password: ""
+#   when: mysql_role == 'slave'
+
+# - name: Temporarily disable super_read_only on slave
+#   mysql_variables:
+#     variable: super_read_only
+#     value: "OFF"
+#     login_user: root
+#     login_password: ""
+#   when: mysql_role == 'slave'
+
+# - name: Change MySQL root password on slave
+#   shell: |
+#     mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}';"
+#   when: mysql_role == 'slave'
+
+- name: Create replication user on master
+  mysql_user:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    name: "{{ mysql_replication_user }}"
+    password: "{{ mysql_replication_password }}"
+    host: '%'
+    priv: '*.*:REPLICATION SLAVE'
+    state: present
+  when: mysql_role == 'master'
+
+- name: Enable super_read_only on slave
+  mysql_variables:
+    variable: super_read_only
+    value: "ON"
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+  when: mysql_role == 'slave'
+
+- name: Enable read_only on slave
+  mysql_variables:
+    variable: read_only
+    value: "ON"
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+  when: mysql_role == 'slave'
+
+- name: Get primary status
+  mysql_replication:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    mode: getprimary
+  register: master_status
+  when: mysql_role == 'master'
+
+# 처음에 셋팅
+# - name: Configure replication on replicas
+#   mysql_replication:
+#     login_user: root
+#     login_password: "{{ mysql_root_password }}"
+#     mode: changeprimary
+#     primary_host: "{{ hostvars[groups['mysql_cluster'][0]].ansible_host }}"
+#     primary_user: "{{ mysql_replication_user }}"
+#     primary_password: "{{ mysql_replication_password }}"
+#     primary_auto_position: yes
+#   when: mysql_role == 'slave'
+
+- name: Start replica
+  mysql_replication:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    mode: startreplica
+  when: mysql_role == 'slave'
+
+- name: Get replica status
+  mysql_replication:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    mode: getreplica
+  register: slave_status
+  when: mysql_role == 'slave'
+
+- name: Show replica status
+  debug:
+    var: slave_status
+  when: mysql_role == 'slave'
