@@ -31,20 +31,39 @@
     - python3-PyMySQL 
     - proxysql-2.4.8-1
 
+- name: Install ProxySQL package
+  dnf:
+    name: proxysql-2.4.8-1
+    state: present
 
-#https://github.com/sysown/proxysql/blob/master/doc/configuration_system.md
 - name: generate proxysql.conf based on template
   template:
-    src=proxysql.conf.j2
-    dest=/etc/proxysql.cnf
+    src: proxysql.conf.j2
+    dest: /etc/proxysql.cnf
 
+- name: Ensure ProxySQL directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: proxysql
+    group: proxysql
+  with_items:
+    - /var/lib/proxysql
+    - /var/run/proxysql
 
-- service: >
-    name=proxysql
-    state=running
-    enabled=yes
+- name: Start ProxySQL service
+  service:
+    name: proxysql
+    state: started
+    enabled: yes
 
-- wait_for: host={{ proxysql.admin.host }} port={{ proxysql.admin.port }}  delay=3 state=started 
+- name: Wait for ProxySQL to be ready
+  wait_for:
+    host: "{{ proxysql.admin.host }}"
+    port: "{{ proxysql.admin.port }}"
+    delay: 3
+    state: started
 
 - name: create 'app' user on the mysql masters
   mysql_user: >

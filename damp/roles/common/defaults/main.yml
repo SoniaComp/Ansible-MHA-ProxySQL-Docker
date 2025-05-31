@@ -1,0 +1,6 @@
+---
+# 기본 변수들을 여기에 정의합니다
+common_packages:
+  - mysql
+  - python3-PyMySQL
+  - epel-release 

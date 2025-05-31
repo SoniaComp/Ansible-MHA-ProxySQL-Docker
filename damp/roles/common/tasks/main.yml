@@ -1,0 +1,19 @@
+---
+- name: Install common packages
+  dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - mysql
+    - python3-PyMySQL
+    - epel-release
+
+- name: Add ProxySQL repository
+  yum_repository:
+    name: proxysql_repo
+    description: ProxySQL YUM repository
+    baseurl: https://repo.proxysql.com/ProxySQL/proxysql-2.4.x/centos/8/
+    gpgcheck: 1
+    gpgkey: https://repo.proxysql.com/ProxySQL/proxysql-2.4.x/repo_pub_key
+    enabled: 1 
