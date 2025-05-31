@@ -1,23 +1,35 @@
 ---
-- set_fact: lsb_release={{ ansible_lsb.codename }}
+- set_fact: 
+    lsb_release: "{{ ansible_distribution_release }}"
 
-- name: add Percona repo
-  apt_repository: repo="deb http://repo.percona.com/apt {{ lsb_release }} main"
+- name: Install Percona release package
+  dnf:
+    name: https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+    disable_gpg_check: yes
 
-- name: Add signing key for Percona repo
-  apt_key:
-    id: 8507EFA5
-    url: "https://percona.com/downloads/deb-percona-keyring.gpg"
-    keyring: /etc/apt/trusted.gpg.d/debian.gpg
+- name: Add ProxySQL GPG key
+  rpm_key:
+    key: https://repo.proxysql.com/ProxySQL/proxysql-2.4.x/repo_pub_key
+    state: present
+
+- name: Add ProxySQL repository
+  yum_repository:
+    name: proxysql_repo
+    description: ProxySQL YUM repository
+    baseurl: https://repo.proxysql.com/ProxySQL/proxysql-2.4.x/centos/8/
+    gpgcheck: 1
+    gpgkey: https://repo.proxysql.com/ProxySQL/proxysql-2.4.x/repo_pub_key
+    enabled: 1
 
 - name: Install ProxySQL package and prerequisites 
-  apt:
-    name={{ item }}
-    update_cache=yes
+  dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
   with_items:
-      -   mysql-client 
-      -   python-mysqldb 
-      -   proxysql 
+    - mysql
+    - python3-PyMySQL 
+    - proxysql-2.4.8-1
 
 
 #https://github.com/sysown/proxysql/blob/master/doc/configuration_system.md
