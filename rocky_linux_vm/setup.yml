@@ -1,12 +1,18 @@
 ---
-- name: Setup MySQL Cluster
-  hosts: mysql_cluster
-  become: yes  # sudo 권한 사용
-  roles:
-    - mysql
-
-# - name: Setup ProxySQL
-#   hosts: proxysql
-#   become: yes
+# - name: Setup MySQL Cluster
+#   hosts: mysql_cluster
+#   become: yes  # sudo 권한 사용
 #   roles:
-#     - proxysql
+#     - mysql
+
+- name: Setup ProxySQL
+  hosts: proxysql
+  become: yes
+  roles:
+    - proxysql
+
+- name: Setup sysbench
+  hosts: sysbench
+  become: yes
+  roles:
+    - sysbench

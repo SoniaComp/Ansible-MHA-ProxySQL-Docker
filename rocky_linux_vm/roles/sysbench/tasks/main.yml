@@ -1,0 +1,31 @@
+- name: Add MySQL 8.0 Repository
+  yum_repository:
+    name: mysql80-community
+    description: MySQL 8.0 Community Server
+    baseurl: http://repo.mysql.com/yum/mysql-8.0-community/el/8/$basearch/
+    gpgcheck: 1
+    gpgkey: https://repo.mysql.com/RPM-GPG-KEY-mysql
+    enabled: 1
+
+- name: Install EPEL repository
+  dnf:
+    name: epel-release
+    state: present
+
+- name: Install ProxySQL package and prerequisites 
+  dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - mysql-server
+    - python3-PyMySQL
+    - python3-pip
+    - python3-devel
+    - mysql-devel
+    - gcc
+
+- name: Install sysbench
+  dnf:
+    name: sysbench
+    state: present

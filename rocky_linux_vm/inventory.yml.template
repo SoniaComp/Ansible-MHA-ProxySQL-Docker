@@ -1,0 +1,79 @@
+---
+all:
+  children:
+    proxysql:
+      hosts:
+        XX.XX.XX.XX:
+          ansible_user: root
+
+    sysbench:
+      hosts:
+        XX.XX.XX.XX:
+          ansible_user: root
+
+    mysql_cluster:
+      hosts:
+        primary:
+          ansible_host: XX.XX.XX.XX
+          mysql_role: master
+          hostgroup: 1
+        replica1:
+          ansible_host: XX.XX.XX.XX
+          mysql_role: slave
+          hostgroup: 1
+      vars:
+        cluster: mysql_cluster
+        ansible_user: root
+        
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_REPLICATION_PASSWORD: "" 
+
+        mysql_port: 3306
+        mysql_bind_address: "0.0.0.0"
+        mysql_root_username: "root"
+        mysql_root_password: "{{ hostvars[inventory_hostname]['MYSQL_ROOT_PASSWORD'] }}"
+
+        # Replication settings
+        mysql_replication_master: "{{ groups['mysql_cluster'][0] }}"
+        mysql_replication_user: "repl"
+        mysql_replication_password: "{{ hostvars[inventory_hostname]['MYSQL_REPLICATION_PASSWORD'] }}"
+
+        # GTID replication
+        mysql_gtid_mode: "ON"
+        mysql_enforce_gtid_consistency: "ON"
+
+        # Server configuration
+        mysql_server_id: "{{ ansible_play_hosts.index(inventory_hostname) + 1 }}"
+        mysql_read_only: "{{ 'ON' if mysql_role == 'slave' else 'OFF' }}"
+
+        # ProxySQL Admin Interface
+        proxysql_admin_interface: "0.0.0.0"
+        proxysql_admin_port: 6032
+        proxysql_admin_user: ""
+        proxysql_admin_passwd: ""
+
+        # ProxySQL MySQL Interface
+        proxysql_mysql_interface: "0.0.0.0"
+        proxysql_mysql_port: 6033
+
+        # ProxySQL Monitor User
+        proxysql_monitor_user: ""
+        proxysql_monitor_password: ""
+        proxysql_monitor_host: "%"
+        proxysql_monitor_interval: 2000
+
+        # ProxySQL Application User
+        proxysql_app_user: ""
+        proxysql_app_password: ""
+        proxysql_app_default_hostgroup: 1
+        proxysql_app_max_connections: 1000
+
+        # ProxySQL Global Variables
+        proxysql_max_connections: 2048
+        proxysql_default_query_timeout: 3600000
+        proxysql_default_connect_timeout: 10000
+        proxysql_monitor_enabled: "true"
+        proxysql_monitor_ping_interval: 10000
+        proxysql_monitor_ping_timeout: 1000
+        proxysql_monitor_read_only_interval: 1500
+        proxysql_monitor_read_only_timeout: 500 

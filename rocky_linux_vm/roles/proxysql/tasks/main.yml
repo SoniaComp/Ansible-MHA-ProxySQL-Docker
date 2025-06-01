@@ -1,0 +1,108 @@
+---
+- name: Add MySQL 8.0 Repository
+  yum_repository:
+    name: mysql80-community
+    description: MySQL 8.0 Community Server
+    baseurl: http://repo.mysql.com/yum/mysql-8.0-community/el/8/$basearch/
+    gpgcheck: 1
+    gpgkey: https://repo.mysql.com/RPM-GPG-KEY-mysql
+    enabled: 1
+
+- name: Add ProxySQL GPG key
+  rpm_key:
+    key: https://repo.proxysql.com/ProxySQL/repo_pub_key
+    state: present
+
+- name: Add ProxySQL repository
+  yum_repository:
+    name: proxysql_repo
+    description: ProxySQL YUM repository
+    baseurl: https://repo.proxysql.com/ProxySQL/proxysql-2.5.x/centos/8
+    gpgcheck: 1
+    gpgkey: https://repo.proxysql.com/ProxySQL/repo_pub_key
+    enabled: 1
+
+- name: Install EPEL repository
+  dnf:
+    name: epel-release
+    state: present
+
+- name: Install ProxySQL package and prerequisites 
+  dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - mysql-server
+    - python3-PyMySQL
+    - python3-pip
+    - python3-devel
+    - mysql-devel
+    - gcc
+    - proxysql
+    - docker
+
+- name: Install Python MySQL modules
+  pip:
+    name:
+      - PyMySQL
+      - mysqlclient
+    state: present
+
+- name: Generate proxysql.conf based on template
+  template:
+    src: proxysql.conf.j2
+    dest: /etc/proxysql.cnf
+    mode: '0640'
+    owner: proxysql
+    group: proxysql
+
+- name: Ensure ProxySQL directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: proxysql
+    group: proxysql
+  with_items:
+    - /var/lib/proxysql
+    - /var/run/proxysql
+
+- name: Start ProxySQL service
+  service:
+    name: proxysql
+    state: started
+    enabled: yes
+
+- name: Wait for ProxySQL to be ready
+  wait_for:
+    host: "{{ proxysql_admin_interface }}"
+    port: "{{ proxysql_admin_port }}"
+    delay: 3
+    state: started
+
+- name: Create application user on MySQL servers
+  mysql_user:
+    login_host: "{{ hostvars[item]['ansible_host'] }}"
+    login_user: "{{ mysql_root_username }}"
+    login_password: "{{ mysql_root_password }}"
+    name: "{{ proxysql_app_user }}"
+    password: "{{ proxysql_app_password }}"
+    priv: "*.*:ALL"
+    host: "%"
+    state: present
+  when: hostvars[item]['mysql_role'] == "master"
+  with_items: "{{ groups['mysql_cluster'] }}"
+
+- name: Create monitor user on MySQL servers
+  mysql_user:
+    login_host: "{{ hostvars[item]['ansible_host'] }}"
+    login_user: "{{ mysql_root_username }}"
+    login_password: "{{ mysql_root_password }}"
+    name: "{{ proxysql_monitor_user }}"
+    password: "{{ proxysql_monitor_password }}"
+    priv: "*.*:REPLICATION CLIENT,PROCESS"
+    host: "{{ proxysql_monitor_host }}"
+    state: present
+  when: hostvars[item]['mysql_role'] == "master"
+  with_items: "{{ groups['mysql_cluster'] }}"
